@@ -25,7 +25,7 @@ def main():
     args = parser.parse_args()
 
     id = int(args.world_id)
-    if args.e is not None and 1 < int(args.e) < 4:
+    if args.e is not None and 1 <= int(args.e) <= 4:
         h = int(args.e)
     else:
         h = 0

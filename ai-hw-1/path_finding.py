@@ -48,7 +48,6 @@ def uninformed_search(grid, start, goal, mode: PathPlanMode):
                     else:
                         frontier.insert(0, neighbor)
                     frontier_sizes.append(len(frontier))
-
     return path, expanded, frontier_sizes
 
 def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
@@ -77,15 +76,44 @@ def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
 
     frontier = PriorityQueue()
     frontier.put((0, start))
-    frontier_sizes = []
-    expanded = []
+    frontier_sizes = [frontier.qsize()]
     reached = {start: {"cost": cost(grid, start), "parent": None}}
+    expanded = []
+    path = []
+
+    def doheuristic(grid, current, goal):
+        if heuristic == Heuristic.MANHATTAN:
+            return abs(current[0] - goal[0]) + abs(current[1] - goal[1])
+        elif heuristic == Heuristic.EUCLIDEAN:
+            return np.sqrt((current[0] - goal[0])**2 + (current[1] - goal[1])**2)
+        else:
+            return 0
+
 
     while not frontier.empty():
         current = frontier.get()[1]
         expanded.append(current)
-
-    path = []
+        if current == goal:
+            path = [current]
+            while current != start:
+                current = reached[current]["parent"]
+                path.append(current)
+            path.reverse()
+            return path, expanded, frontier_sizes
+        else:
+            for neighbor in expand(grid, current):
+                if (neighbor not in reached) or ((reached[current]["cost"] + cost(grid, neighbor)) < reached[neighbor]["cost"]):
+                    reached[neighbor] = {"cost": reached[current]["cost"] + cost(grid, neighbor), "parent": current}
+                    if mode == PathPlanMode.A_STAR:
+                        frontier.put((reached[neighbor]["cost"] + doheuristic(grid, neighbor, goal), neighbor))
+                    else:
+                        frontier.put((reached[neighbor]["cost"] + doheuristic(grid, neighbor, goal), neighbor))
+                        if frontier.qsize() > width:
+                            temp_frontier = PriorityQueue()
+                            for _ in range(width):
+                                temp_frontier.put(frontier.get())
+                            frontier = temp_frontier
+                    frontier_sizes.append(frontier.qsize())
     return path, expanded, frontier_sizes
 
 
@@ -147,10 +175,19 @@ def __dfs_ida_star(grid, start, goal, heuristic: Heuristic, bound):
     expanded = []
     reached = {start: {"cost": cost(grid, start), "parent": None}}
     next_bound = np.inf
-
-    # TODO:
-
     path = []
+
+    def doheuristic(grid, current, goal):
+        if heuristic == Heuristic.MANHATTAN:
+            return abs(current[0] - goal[0]) + abs(current[1] - goal[1])
+        elif heuristic == Heuristic.EUCLIDEAN:
+            return np.sqrt((current[0] - goal[0])**2 + (current[1] - goal[1])**2)
+        else:
+            return 0
+
+    while len(frontier) > 0:
+        frontier.pop(0)
+        
     return path, expanded, frontier_sizes, next_bound
 
 
