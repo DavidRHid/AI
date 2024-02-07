@@ -24,13 +24,31 @@ def uninformed_search(grid, start, goal, mode: PathPlanMode):
     """
 
     frontier = [start]
-    frontier_sizes = []
-    expanded = []
+    frontier_sizes = [len(frontier)]
     reached = {start: None}
-
-    # TODO:
-
+    expanded = []
     path = []
+
+    while len(frontier) > 0:
+        current = frontier.pop(0)
+        expanded.append(current)
+        if current == goal:
+            path.append(current)
+            while current != start:
+                current = reached[current]
+                path.append(current)
+            path.reverse()
+            return path, expanded, frontier_sizes
+        else:
+            for neighbor in expand(grid, current):
+                if (neighbor not in reached):
+                    reached[neighbor] = current
+                    if mode == PathPlanMode.BFS:
+                        frontier.append(neighbor)
+                    else:
+                        frontier.insert(0, neighbor)
+                    frontier_sizes.append(len(frontier))
+
     return path, expanded, frontier_sizes
 
 def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
@@ -63,7 +81,9 @@ def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
     expanded = []
     reached = {start: {"cost": cost(grid, start), "parent": None}}
 
-    # TODO:
+    while not frontier.empty():
+        current = frontier.get()[1]
+        expanded.append(current)
 
     path = []
     return path, expanded, frontier_sizes
