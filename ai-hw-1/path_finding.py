@@ -24,12 +24,13 @@ def uninformed_search(grid, start, goal, mode: PathPlanMode):
     """
 
     frontier = [start]
-    frontier_sizes = [len(frontier)]
+    frontier_sizes = []
     reached = {start: None}
     expanded = []
     path = []
 
     while len(frontier) > 0:
+        frontier_sizes.append(len(frontier))
         current = frontier.pop(0)
         expanded.append(current)
         if current == goal:
@@ -47,7 +48,6 @@ def uninformed_search(grid, start, goal, mode: PathPlanMode):
                         frontier.append(neighbor)
                     else:
                         frontier.insert(0, neighbor)
-                    frontier_sizes.append(len(frontier))
     return path, expanded, frontier_sizes
 
 def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
@@ -76,7 +76,7 @@ def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
 
     frontier = PriorityQueue()
     frontier.put((0, start))
-    frontier_sizes = [frontier.qsize()]
+    frontier_sizes = []
     reached = {start: {"cost": cost(grid, start), "parent": None}}
     expanded = []
     path = []
@@ -91,6 +91,7 @@ def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
 
 
     while not frontier.empty():
+        frontier_sizes.append(frontier.qsize())
         current = frontier.get()[1]
         expanded.append(current)
         if current == goal:
@@ -113,7 +114,6 @@ def a_star(grid, start, goal, mode: PathPlanMode, heuristic: Heuristic, width):
                             for _ in range(width):
                                 temp_frontier.put(frontier.get())
                             frontier = temp_frontier
-                    frontier_sizes.append(frontier.qsize())
     return path, expanded, frontier_sizes
 
 
@@ -171,7 +171,7 @@ def __dfs_ida_star(grid, start, goal, heuristic: Heuristic, bound):
     """
 
     frontier = [start]
-    frontier_sizes = [len(frontier)]
+    frontier_sizes = []
     reached = {start: {"cost": cost(grid, start), "parent": None}}
     next_bound = np.inf
     expanded = []
@@ -186,6 +186,7 @@ def __dfs_ida_star(grid, start, goal, heuristic: Heuristic, bound):
             return 0
 
     while len(frontier) > 0:
+        frontier_sizes.append(len(frontier))
         current = frontier.pop(0)
         expanded.append(current)
         if current == goal:
@@ -201,7 +202,6 @@ def __dfs_ida_star(grid, start, goal, heuristic: Heuristic, bound):
                     reached[neighbor] = {"cost": reached[current]["cost"] + cost(grid, neighbor), "parent": current}
                     if reached[neighbor]["cost"] + doheuristic(grid, neighbor, goal) <= bound:
                         frontier.insert(0, neighbor)
-                        frontier_sizes.append(len(frontier))
                     else:
                         next_bound = min(next_bound, reached[neighbor]["cost"] + doheuristic(grid, neighbor, goal))
     return path, expanded, frontier_sizes, next_bound
