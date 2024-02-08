@@ -171,10 +171,10 @@ def __dfs_ida_star(grid, start, goal, heuristic: Heuristic, bound):
     """
 
     frontier = [start]
-    frontier_sizes = []
-    expanded = []
+    frontier_sizes = [len(frontier)]
     reached = {start: {"cost": cost(grid, start), "parent": None}}
     next_bound = np.inf
+    expanded = []
     path = []
 
     def doheuristic(grid, current, goal):
@@ -186,9 +186,26 @@ def __dfs_ida_star(grid, start, goal, heuristic: Heuristic, bound):
             return 0
 
     while len(frontier) > 0:
-        frontier.pop(0)
-        
+        current = frontier.pop(0)
+        expanded.append(current)
+        if current == goal:
+            path = [current]
+            while current != start:
+                current = reached[current]["parent"]
+                path.append(current)
+            path.reverse()
+            return path, expanded, frontier_sizes, next_bound
+        else:
+            for neighbor in expand(grid, current):
+                if (neighbor not in reached) or ((reached[current]["cost"] + cost(grid, neighbor)) < reached[neighbor]["cost"]):
+                    reached[neighbor] = {"cost": reached[current]["cost"] + cost(grid, neighbor), "parent": current}
+                    if reached[neighbor]["cost"] + doheuristic(grid, neighbor, goal) <= bound:
+                        frontier.insert(0, neighbor)
+                        frontier_sizes.append(len(frontier))
+                    else:
+                        next_bound = min(next_bound, reached[neighbor]["cost"] + doheuristic(grid, neighbor, goal))
     return path, expanded, frontier_sizes, next_bound
+
 
 
 def test_world(world_id, start, goal, h, width, animate, world_dir):
