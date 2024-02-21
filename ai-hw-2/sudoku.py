@@ -100,7 +100,17 @@ def simulated_annealing(board, clues, startT, decay, tol=1e-4):
         board (numpy): NumPy array representing the final sudoku board.
         errors (list): List of errors of each board encountered during search.
     """
-    # TODO:
+    T = startT
+    while(T > tol):
+        succ = successors(board, clues)
+        if len(succ) == 0 or num_errors(board) == 0:
+            return board, [num_errors(board)]
+        next_board = random.choice(succ)
+        deltaE = num_errors(next_board) - num_errors(board)
+        if deltaE < 0 or random.random() < np.exp(-deltaE / T):
+            board = next_board
+        T *= decay
+
     errors = [num_errors(board)]
 
     return board, errors
