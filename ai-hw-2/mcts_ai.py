@@ -36,9 +36,20 @@ def select(root, alpha):
 
     Returns:
         node (Node): Node at bottom of MCTS tree
+
+    select() takes in the root node and alpha value for UCT calculation. If the current node's
+    children list contains all possible successors of the board state, then repeatedly move to
+    the one with the highest UCT value. You can obtain these successors using the imported
+    get possible moves() and play move() functions. If the current node has at least one
+    successor not in the tree or is a terminal state, then it stops and returns the current node.
     """
-    # TODO:
-    return root
+    possible_moves = get_possible_moves(root.state, root.player)
+    children = root.children
+    if possible_moves and children and len(possible_moves) == len(children):
+        c = max(children, key=lambda x: x.value + alpha * np.sqrt(2 * np.log(root.N) / x.N))
+        return select(c, alpha)
+    else:
+        return root
 
 
 def expand(node):
@@ -49,10 +60,21 @@ def expand(node):
 
     Returns:
         leaf (Node): Newly created node (or given Node if already leaf)
-    """
-    # TODO:
-    return node
 
+    expand() attempts to expand the tree. It finds a successor of the given state that is currently
+    not in node.children, creates a new leaf node, and adds it node.children. It then returns
+    the leaf node. If node has no successors, then it simply returns node back.
+    """
+    possible_moves = get_possible_moves(node.state, node.player)
+    children = node.children
+    if possible_moves != [] and len(possible_moves) > len(children):
+        for m in possible_moves:
+            s = play_move(node.state, node.player, m[0], m[1])
+            if node.get_child(s) is None:
+                new = Node(s, 3 - node.player, node, [], 0, 0)
+                node.children.append(new)
+                return new
+    return node
 
 def simulate(node):
     """ Run one game rollout using from state to a terminal state.
@@ -63,10 +85,22 @@ def simulate(node):
 
     Returns:
         utility (int): Utility of final state
-    """
-    # TODO:
-    return 0
 
+    simulate() runs a rollout starting from the given node. One way to do so is to simply
+    execute a random move at each node until reaching a terminal state. It then computes and
+    returns the utility of the final state (you can use compute utility()).
+    """
+    state = node.state
+    player = node.player
+    while True:
+        moves = get_possible_moves(state, player)
+        if moves:
+            move = random.choice(moves)
+            state = play_move(state, player, move[0], move[1])
+        else:
+            break
+        player = 3 - player
+    return compute_utility(state)
 
 def backprop(node, utility):
     """ Backpropagate result from state up to the root.
@@ -77,8 +111,21 @@ def backprop(node, utility):
     Args:
         node (Node): Leaf node from which rollout started.
         utility (int): Utility of simulated rollout.
+
+    backprop() backpropagates the computed utility from node back up to the root. First, we
+    increment the current node's N value. Next, the node's value update depends on the player's
+    utility. For the light player (2) we can use utility directly, since their parent (1) wants to
+    maximize these values. For the dark player (1), we need to use the negative of utility for
+    the opposite reason. The new (average) value of each node can then be computed as follows:
+    node.value = (node.value * (node.N - 1) + player_utility) / node.N
     """
-    # TODO:
+    while node is not None:
+        node.N += 1
+        if node.player == 1:
+            node.value = (node.value * (node.N - 1) - utility) / node.N
+        else:
+            node.value = (node.value * (node.N - 1) + utility) / node.N
+        node = node.parent
     return
 
 
