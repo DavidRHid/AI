@@ -43,7 +43,12 @@ class RL_Agent(object):
         Returns:
             action (string): Action chosen from valid_actions.
         """
-        # TODO
+        if random.random() < self.epsilon:
+            action = random.choice(valid_actions)
+        else:
+            action = max(valid_actions, key=lambda a: self.Qvalues[(state, a)])
+        if action in valid_actions:
+            return action
         return None
 
 
@@ -57,5 +62,6 @@ class RL_Agent(object):
             successor (tuple): Successor state.
             valid_actions (list): A list of possible actions at successor state.
         """
-        # TODO
+        max_Q = max([self.Qvalues[(successor, a)] for a in valid_actions])
+        self.Qvalues[(state, action)] += self.alpha * (reward + self.gamma * max_Q - self.Qvalues[(state, action)])
         pass
