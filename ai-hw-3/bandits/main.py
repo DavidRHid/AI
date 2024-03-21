@@ -70,7 +70,7 @@ def main():
 
         best_arms_found.append(max(set(best_arm), key=best_arm.count))
         regrets_over_time.append(np.cumsum(regrets) / args.m)
-        proportions_over_time.append(np.cumsum(best_arm_counts) / np.arange(1, args.n+1))
+        proportions_over_time.append(np.cumsum(best_arm_counts) / (np.arange(1, args.n+1) * args.m))
 
     print("=" * 40)
     print("Plotting Results...\n")

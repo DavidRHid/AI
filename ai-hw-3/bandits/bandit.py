@@ -57,7 +57,7 @@ class Bandit:
             return np.random.randint(len(self.arms))
         
     def choose_arm_ucb(self, t: int) -> int:
-        return np.argmax(self.Qvalues + self.value * np.sqrt(np.log(t + 1) / (self.arm_counts + 1e-8)))
+        return np.argmax(self.Qvalues + self.value * np.sqrt(2*np.log(t + 1) / (self.arm_counts + 1)))
     
     def pull_arm(self, idx: int) -> float:
         reward = 0
