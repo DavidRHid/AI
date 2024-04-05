@@ -73,7 +73,7 @@ class Gridworld_HMM:
         Returns:
           np.ndarray: Updated belief state.
         """
-        return alpha @ self.trans * self.obs[observation]
+        return (alpha.T @ self.trans) * self.obs[observation]
 
 
     def backward(self, beta: npt.ArrayLike, observation: int):
@@ -85,7 +85,7 @@ class Gridworld_HMM:
           np.ndarray: Updated array.
         """
 
-        return beta * self.obs[observation] @ self.trans.T
+        return (beta * self.obs[observation]) @ self.trans.T
 
 
     def filtering(self, observations: list[int]):
@@ -100,12 +100,11 @@ class Gridworld_HMM:
         belief = np.zeros((len(observations), self.grid.size))
         for i, observation in enumerate(observations):
             if i == 0:
-                alphas[i] = self.init
+                alphas[i] = self.forward(self.init, observation)
             else:
                 alphas[i] = self.forward(alphas[i - 1], observation)
             belief[i] = alphas[i] / np.sum(alphas[i])
         return alphas, belief
-
 
     def smoothing(self, observations: list[int]):
         """Perform smoothing over all observations.
@@ -138,18 +137,30 @@ class Gridworld_HMM:
         Returns:
           np.ndarray: Learned 16xn matrix of observation probabilities, where n = size of grid.
           list[float]: List of data likelihoods at each iteration.
+       
+        For this last part, we will no longer assume a known observation model. The agent receives a
+        sequence of measurements, which we will use to estimate a new set of observation probabilities
+        using the Baum-Welch algorithm in the baum welch() function.
+        In each iteration of Baum-Welch, first call smoothing to get all the gamma distributions. Use
+        these to compute a new observation probability array, and update self.obs in place. Separately, compute the log likelihood log Pr(e1:T ) in each iteration. To do so, you can compute
+        log(PxtPr(xt, e1:T )) = log(Pxtαt ∗ βt) for any t. We recommend that you use t = 1 since you
+        already have β1 from smoothing, and you will just need one forward call to obtain α1.
+        Store the computed log likelihoods in a list, and stop running Baum-Welch when the difference in
+        log likelihoods between two successive iterations is 10−3 or smaller. Return both the new matrix
+        of learned observation probabilities, as well as the list of log likelihoods.
         """
-        data_likelihoods = []
-        for _ in range(100):
+        log_likelihoods = []
+        while True:
             alphas, _ = self.filtering(observations)
-            betas, _ = self.smoothing(observations)
-            xi = np.zeros((len(observations), self.grid.size, self.grid.size))
-            for i in range(len(observations) - 1):
-                xi[i] = np.outer(alphas[i], betas[i + 1])
-
-            for j in range(self.grid.size):
-                for k in range(self.grid.size):
-                    self.obs[:, j] = np.sum(xi[:, j, k] * (observations == k)) / np.sum(xi[:, j, k])
-
-            data_likelihoods.append(np.sum(np.log(np.sum(alphas, axis=1))))
-        return self.obs, data_likelihoods
+            betas, gammas = self.smoothing(observations)
+            new_obs = np.zeros_like(self.obs)
+            for i in range(len(observations)):
+                for j in range(16):
+                    new_obs[j] += gammas[i] * (observations[i] == j)
+            new_obs /= np.sum(gammas, axis=0)
+            self.obs = new_obs
+            log_likelihood = np.log(np.sum(betas[0] * alphas[0]))
+            log_likelihoods.append(log_likelihood)
+            if len(log_likelihoods) > 1 and log_likelihood - log_likelihoods[-2] < 1e-3:
+                break
+        return self.obs, log_likelihoods
