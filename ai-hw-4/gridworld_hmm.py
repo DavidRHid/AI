@@ -151,16 +151,20 @@ class Gridworld_HMM:
         """
         log_likelihoods = []
         while True:
-            alphas, _ = self.filtering(observations)
             betas, gammas = self.smoothing(observations)
-            new_obs = np.zeros_like(self.obs)
+            gammas = np.nan_to_num(gammas)
+            betas = np.nan_to_num(betas)
+            computed_obs = np.zeros_like(self.obs)
             for i in range(len(observations)):
                 for j in range(16):
-                    new_obs[j] += gammas[i] * (observations[i] == j)
-            new_obs /= np.sum(gammas, axis=0)
-            self.obs = new_obs
-            log_likelihood = np.log(np.sum(betas[0] * alphas[0]))
+                    computed_obs[j] += gammas[i, :] * (observations[i] == j)
+            computed_obs /= np.sum(gammas, axis=0)
+            self.obs = computed_obs
+            self.obs = np.nan_to_num(self.obs)
+            alpha1 = self.forward(self.init, observations[0])
+            alpha1 = np.nan_to_num(alpha1)
+            log_likelihood = np.log(np.dot(alpha1, betas[0]))
             log_likelihoods.append(log_likelihood)
-            if len(log_likelihoods) > 1 and log_likelihood - log_likelihoods[-2] < 1e-3:
+            if len(log_likelihoods) > 1 and abs(log_likelihoods[-1] - log_likelihoods[-2]) < 1e-3:
                 break
         return self.obs, log_likelihoods
