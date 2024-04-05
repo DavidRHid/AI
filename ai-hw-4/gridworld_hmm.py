@@ -39,7 +39,6 @@ class Gridworld_HMM:
         T = np.zeros((self.grid.size, self.grid.size))
         for i in range(self.grid.size):
             neighbors = self.neighbors((i // self.grid.shape[1], i % self.grid.shape[1]))
-            print(neighbors)
             for neighbor in neighbors:
                 j = neighbor[0] * self.grid.shape[1] + neighbor[1]
                 T[i, j] = 1 / len(neighbors)
@@ -49,8 +48,17 @@ class Gridworld_HMM:
         """
         Create and return 16xn matrix of observation probabilities, where n = size of grid.
         """
-        # TODO
-        return np.ones((16, self.grid.size)) / 16
+        O = np.zeros((16, self.grid.size))
+        for i in range(self.grid.size):
+            neighbors = self.neighbors((i // self.grid.shape[1], i % self.grid.shape[1]))
+            north = 0 if (i // self.grid.shape[1] - 1, i % self.grid.shape[1]) in neighbors else 1
+            east = 0 if (i // self.grid.shape[1], i % self.grid.shape[1] + 1) in neighbors else 1
+            south = 0 if (i // self.grid.shape[1] + 1, i % self.grid.shape[1]) in neighbors else 1
+            west = 0 if (i // self.grid.shape[1], i % self.grid.shape[1] - 1) in neighbors else 1
+            trueval = 8 * north + 4 * east + 2 * south + west
+            for j in range(16):
+                O[j, i] = ((1 - self.epsilon) ** (4 - (bin(trueval^j).count('1')))) * (self.epsilon ** (bin(trueval^j).count('1')))
+        return O
 
 
     """
@@ -65,8 +73,7 @@ class Gridworld_HMM:
         Returns:
           np.ndarray: Updated belief state.
         """
-        # TODO
-        return alpha
+        return alpha @ self.trans * self.obs[observation]
 
 
     def backward(self, beta: npt.ArrayLike, observation: int):
@@ -77,8 +84,8 @@ class Gridworld_HMM:
         Returns:
           np.ndarray: Updated array.
         """
-        # TODO
-        return beta
+
+        return beta * self.obs[observation] @ self.trans.T
 
 
     def filtering(self, observations: list[int]):
@@ -89,8 +96,15 @@ class Gridworld_HMM:
           np.ndarray: Alpha vectors at each timestep.
           np.ndarray: Estimated belief state at each timestep.
         """
-        # TODO
-        return np.zeros((len(observations), self.grid.size)), np.zeros((len(observations), self.grid.size))
+        alphas = np.zeros((len(observations), self.grid.size))
+        belief = np.zeros((len(observations), self.grid.size))
+        for i, observation in enumerate(observations):
+            if i == 0:
+                alphas[i] = self.init
+            else:
+                alphas[i] = self.forward(alphas[i - 1], observation)
+            belief[i] = alphas[i] / np.sum(alphas[i])
+        return alphas, belief
 
 
     def smoothing(self, observations: list[int]):
@@ -101,8 +115,15 @@ class Gridworld_HMM:
           np.ndarray: Beta vectors at each timestep.
           np.ndarray: Smoothed belief state at each timestep.
         """
-        # TODO
-        return np.zeros((len(observations), self.grid.size)), np.zeros((len(observations), self.grid.size))
+        alphas, belief = self.filtering(observations)
+        betas = np.zeros_like(alphas)
+        for i in range(len(observations) - 1, -1, -1):
+            if i == len(observations) - 1:
+                betas[i] = np.ones_like(self.init)
+            else:
+                betas[i] = self.backward(betas[i + 1], observations[i + 1])
+            belief[i] = alphas[i] * betas[i] / np.sum(alphas[i] * betas[i])
+        return betas, belief
 
 
     """
@@ -118,6 +139,17 @@ class Gridworld_HMM:
           np.ndarray: Learned 16xn matrix of observation probabilities, where n = size of grid.
           list[float]: List of data likelihoods at each iteration.
         """
-        # TODO
-        self.obs = np.ones((16, M * N)) / 16
-        return self.obs, [0]
+        data_likelihoods = []
+        for _ in range(100):
+            alphas, _ = self.filtering(observations)
+            betas, _ = self.smoothing(observations)
+            xi = np.zeros((len(observations), self.grid.size, self.grid.size))
+            for i in range(len(observations) - 1):
+                xi[i] = np.outer(alphas[i], betas[i + 1])
+
+            for j in range(self.grid.size):
+                for k in range(self.grid.size):
+                    self.obs[:, j] = np.sum(xi[:, j, k] * (observations == k)) / np.sum(xi[:, j, k])
+
+            data_likelihoods.append(np.sum(np.log(np.sum(alphas, axis=1))))
+        return self.obs, data_likelihoods
